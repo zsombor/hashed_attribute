@@ -1,0 +1,45 @@
+= HashedAttribute
+
+Placing an index on a string attribute in SQL is a bit tricky. First
+some databases like MySQL limit the length of the index key, so you
+are likely to get an error like:
+
+    error 1071: Specified key was too long 
+
+Even when you manage to place the index, usually using a prefix on the
+string, the results will be sub-optimal as only the first few letters
+are used in the index. If you are using Single Table Inheritance
+(usually something you will regret later) with class names placed in a
+module then the look-up on the `type` column will essentially be a full
+table scan.
+
+Other use cases involve looking up an user by name, or the typical
+`find_by_subdomain` call in apps following the subdomain as account
+model. Latter is omnipresent in every request.  
+
+Lastly the shorter an index is, the better the performance on all DB
+engines. Hence an index on an integer column is preferable to one on a
+string column.
+
+To solution is to append an `integer` field that contains a hashed
+value of the contents of the string column. Then place a regular index
+on the hash column. Now when performing look-ups by a constant strings,
+append the hash of the string.
+
+This gem provides a `hashed_attribute` class method that takes care of
+writing and updating hashed fields. Use it like:
+
+    class Company < ActiveRecord::Base
+      hashed_attribute :subdomain
+    end 
+
+This assumes the presence of a `subdomain_hash` column as well as
+regular index on the latter. The look-up by subdomain becomes
+
+      
+     Company.find_by_subdomain('yoda') 
+
+that will automatically append a hash of the constant string to the
+`WHERE` condition. 
+
+     
